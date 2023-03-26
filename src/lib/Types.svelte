@@ -1,13 +1,15 @@
 <script context="module" lang="ts">
-  export const supportedModels = [ // See: https://platform.openai.com/docs/models/model-endpoint-compatibility
-    'gpt-4',
-    'gpt-4-0314',
-    'gpt-4-32k',
-    'gpt-4-32k-0314',
-    'gpt-3.5-turbo',
-    'gpt-3.5-turbo-0301'
-  ]
+  export const supportedModels = [
+    // See: https://platform.openai.com/docs/models/model-endpoint-compatibility
+    "gpt-4",
+    "gpt-4-0314",
+    "gpt-4-32k",
+    "gpt-4-32k-0314",
+    "gpt-3.5-turbo",
+    "gpt-3.5-turbo-0301",
+  ];
   export type Model = typeof supportedModels[number];
+  type PluginFunction = (input: string) => Promise<PluginResponse>;
 
   export type Usage = {
     completion_tokens: number;
@@ -16,8 +18,9 @@
   };
 
   export type Message = {
-    role: 'user' | 'assistant' | 'system' | 'error';
+    role: "user" | "assistant" | "system" | "error" | "plugin";
     content: string;
+    hide: boolean;
     usage?: Usage;
     model?: Model;
   };
@@ -26,11 +29,48 @@
     id: number;
     name: string;
     messages: Message[];
+    plugins: string[];
+  };
+
+  export type EmailPassword = {
+    service: string;
+    email: string;
+    password: string;
+  };
+
+  export type Prompt = {
+    name: string;
+    system: string;
+  };
+
+  export type Plugin = {
+    name: string;
+    plugin: string;
+    explanation: string;
+    receive: PluginFunction;
+  };
+
+  export enum PluginResponseType {
+    ADD,
+    REPLACE,
+    IGNORE,
+  }
+
+  export type PluginResponse = {
+    type: PluginResponseType;
+    message: string;
+  };
+
+  export type MessageRaw = {
+    role: "user" | "assistant" | "system" | "error" | "plugin";
+    content: string;
+    usage?: Usage;
+    model?: Model;
   };
 
   export type Request = {
     model?: Model;
-    messages: Message[];
+    messages: MessageRaw[];
     temperature?: number;
     top_p?: number;
     n?: number;
@@ -44,7 +84,7 @@
   };
 
   type SettingsNumber = {
-    type: 'number';
+    type: "number";
     default: number;
     min: number;
     max: number;
@@ -52,7 +92,7 @@
   };
 
   export type SettingsSelect = {
-    type: 'select';
+    type: "select";
     default: Model;
     options: Model[];
   };
@@ -88,7 +128,7 @@
   export type Response = ResponseOK & ResponseError;
 
   export type ResponseModels = {
-    object: 'list';
+    object: "list";
     data: {
       id: string;
     }[];

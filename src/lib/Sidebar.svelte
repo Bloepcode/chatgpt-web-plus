@@ -31,13 +31,8 @@
   <p class="menu-label">Actions</p>
   <ul class="menu-list">
     <li>
-      <a href={'#/'} class="panel-block" class:is-disabled={!$apiKeyStorage} class:is-active={!activeChatId}
-        ><span class="greyscale mr-2">🔑</span> API key</a
-      >
-    </li>
-    <li>
       <a href={'#/chat/new'} class="panel-block" class:is-disabled={!$apiKeyStorage}
-        ><span class="greyscale mr-2">➕</span> New chat</a
+      ><span class="greyscale mr-2">➕</span> New chat</a
       >
     </li>
     <li>
@@ -65,6 +60,12 @@
           }}><span class="greyscale mr-2">📥</span> Export chat</a
         >
       </li>
-    {/if}
-  </ul>
-</aside>
+      {/if}
+      <li>
+        <a href={'#/'} class="panel-block" class:is-disabled={!$apiKeyStorage} class:is-active={!activeChatId}
+          ><span class="greyscale mr-2">🔑</span> API key</a
+        >
+      </li>
+    </ul>
+  </aside>
+  
