@@ -2,7 +2,8 @@
   import Code from "./Code.svelte";
   import SvelteMarkdown from "svelte-markdown";
   import type { Message, Model, Usage } from "./Types.svelte";
-  import { deleteMessages } from "./Storage.svelte";
+  import Loading from "svelte-material-icons/Loading.svelte";
+  import Pencil from "svelte-material-icons/Pencil.svelte";
 
   // Marked options
   const markedownOptions = {
@@ -12,83 +13,55 @@
   };
 
   export let messages: Message[];
-  export let chatId: number;
   export let input: HTMLTextAreaElement;
-
-  // Reference: https://openai.com/pricing#language-models
-  const tokenPrice: Record<string, [number, number]> = {
-    "gpt-4-32k": [0.00006, 0.00012], // $0.06 per 1000 tokens prompt, $0.12 per 1000 tokens completion
-    "gpt-4": [0.00003, 0.00006], // $0.03 per 1000 tokens prompt, $0.06 per 1000 tokens completion
-    "gpt-3.5": [0.000002, 0.000002], // $0.002 per 1000 tokens (both prompt and completion)
-  };
-
-  const getPrice = (tokens: Usage, model: Model): number => {
-    for (const [key, [promptPrice, completionPrice]] of Object.entries(
-      tokenPrice
-    )) {
-      if (model.startsWith(key)) {
-        return (
-          tokens.prompt_tokens * promptPrice +
-          tokens.completion_tokens * completionPrice
-        );
-      }
-    }
-
-    return 0;
-  };
+  export let updating: boolean;
+  export let editMessage: (i: number) => void;
 
   console.log(messages);
 </script>
 
-{#each messages as message, i}
-  {#if !message.hide}
-    {#if message.role === "user"}
-      <article
-        class="message is-info user-message"
-        class:has-text-left={message.content
-          .split("\n")
-          .filter((line) => line.trim()).length === 1}
+<div class="flex flex-col gap-4 py-4">
+  {#each messages as message, i}
+    {#if !message.hide}
+      <div
+        class="card max-w-9-10 lg:max-w-4-5"
+        class:self-end={message.role === "user"}
+        class:bg-success={message.role === "user"}
+        class:text-success-content={message.role === "user"}
+        class:bg-neutral={message.role === "assistant"}
+        class:bg-info={message.role === "plugin"}
+        class:text-info-content={message.role === "plugin"}
+        class:bg-error={message.role === "error"}
+        class:text-error-content={message.role === "error"}
+        class:max-w-3-5={message.role === "plugin" || message.role === "error"}
       >
-        <div class="message-body content">
-          <div>
-            <SvelteMarkdown
-              source={message.content}
-              options={markedownOptions}
-              renderers={{ code: Code, html: Code }}
-            />
-          </div>
-          <button
-            class="button is-warning editbutton"
-            on:click={() => {
-              $: input.value = message.content;
-              $: input.focus();
-              deleteMessages(chatId, i);
-            }}
-          >
-            ✏️
-          </button>
-        </div>
-      </article>
-    {:else if message.role === "system" || message.role === "error" || message.role === "plugin"}
-      <article class="message is-danger assistant-message">
-        <div class="message-body content">
+        <div class="group card-body content p-6 relative">
+          {#if message.role === "user"}
+            <button
+              class="absolute transition-transform scale-0 group-hover:scale-100 top-0 left-0 btn btn-circle -translate-x-1/4 -translate-y-1/4"
+              on:click={() => {
+                input.value = message.content;
+                input.focus();
+                editMessage(i);
+              }}
+            >
+              <Pencil size={20} />
+            </button>
+          {/if}
           <SvelteMarkdown
             source={message.content}
             options={markedownOptions}
             renderers={{ code: Code, html: Code }}
           />
         </div>
-      </article>
-    {:else}
-      <article class="message is-success assistant-message">
-        <div class="message-body content">
-          <SvelteMarkdown
-            source={message.content}
-            options={markedownOptions}
-            renderers={{ code: Code, html: Code }}
-          />
-        </div>
-      </article>
+      </div>
     {/if}
+  {/each}
+  {#if updating}
+    <div class="card w-fit bg-warning text-warning-content">
+      <div class="card-body content p-6 flex flex-row items-center">
+        <Loading class="animate-spin" size={20} /> Loading...
+      </div>
+    </div>
   {/if}
-{/each}
+</div>

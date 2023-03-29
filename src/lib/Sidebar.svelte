@@ -1,71 +1,64 @@
 <script lang="ts">
-  import { params, replace } from 'svelte-spa-router'
+  import { params, replace } from "svelte-spa-router";
 
-  import { apiKeyStorage, chatsStorage, clearChats } from './Storage.svelte'
-  import { exportAsMarkdown } from './Export.svelte'
+  import { apiKeyStorage, chatsStorage, clearChats } from "./Storage.svelte";
+  import { exportAsMarkdown } from "./Export.svelte";
 
-  $: sortedChats = $chatsStorage.sort((a, b) => b.id - a.id)
+  $: sortedChats = $chatsStorage.sort((a, b) => b.id - a.id);
 
-  $: activeChatId = $params && $params.chatId ? parseInt($params.chatId) : undefined
+  $: activeChatId =
+    $params && $params.chatId ? parseInt($params.chatId) : undefined;
 </script>
 
-<aside class="menu">
-  <p class="menu-label">Chats</p>
-  <ul class="menu-list">
-    {#if sortedChats.length === 0}
-      <li><a href={'#'} class="is-disabled">No chats yet...</a></li>
-    {:else}
-      <li>
-        <ul>
-          {#each sortedChats as chat}
-            <li>
-              <a href={`#/chat/${chat.id}`} class:is-disabled={!$apiKeyStorage} class:is-active={activeChatId === chat.id}
-                >{chat.name || `Chat ${chat.id}`}</a
-              >
-            </li>
-          {/each}
-        </ul>
-      </li>
-    {/if}
-  </ul>
-  <p class="menu-label">Actions</p>
-  <ul class="menu-list">
+<p class="label-text ml-2 mt-2">Chats</p>
+<ul class="menu menu-normal bg-base-100 w-full rounded-box p-2">
+  <li>
+    <a href={"#/chat/new"}>New chat</a>
+  </li>
+</ul>
+
+<ul class="menu menu-normal bg-base-100 w-full rounded-box p-2 gap-2">
+  {#if sortedChats.length == 0}
+    <li class="disabled"><p class="label-text">No chats yet...</p></li>
+  {/if}
+  {#each sortedChats as chat}
     <li>
-      <a href={'#/chat/new'} class="panel-block" class:is-disabled={!$apiKeyStorage}
-      ><span class="greyscale mr-2">➕</span> New chat</a
+      <a class:active={activeChatId == chat.id} href={`#/chat/${chat.id}`}
+        >{chat.name || `Chat ${chat.id}`}</a
       >
     </li>
+  {/each}
+</ul>
+
+<p class="label-text ml-2 mt-2">Actions</p>
+<ul class="menu menu-normal bg-base-100 w-full rounded-box p-2 gap-2">
+  <li>
+    <a
+      class="panel-block"
+      href={"#/"}
+      on:click|preventDefault={() => {
+        const confirmDelete = window.confirm(
+          "Are you sure you want to delete all your chats?"
+        );
+        if (confirmDelete) {
+          replace("#/").then(() => clearChats());
+        }
+      }}>Clear chats</a
+    >
+  </li>
+  {#if activeChatId}
     <li>
-      <a class="panel-block"
-        href="{'#/'}"
-        class:is-disabled={!$apiKeyStorage}
+      <a
+        href={"#/"}
         on:click|preventDefault={() => {
-          const confirmDelete = window.confirm('Are you sure you want to delete all your chats?')
-          if (confirmDelete) {
-            replace('#/').then(() => clearChats())
+          if (activeChatId) {
+            exportAsMarkdown(activeChatId);
           }
-        }}><span class="greyscale mr-2">🗑️</span> Clear chats</a
+        }}>Export chat</a
       >
     </li>
-    {#if activeChatId}
-      <li>
-        <a
-          href={'#/'}
-          class="panel-block"
-          class:is-disabled={!apiKeyStorage}
-          on:click|preventDefault={() => {
-            if (activeChatId) {
-              exportAsMarkdown(activeChatId)
-            }
-          }}><span class="greyscale mr-2">📥</span> Export chat</a
-        >
-      </li>
-      {/if}
-      <li>
-        <a href={'#/'} class="panel-block" class:is-disabled={!$apiKeyStorage} class:is-active={!activeChatId}
-          ><span class="greyscale mr-2">🔑</span> API key</a
-        >
-      </li>
-    </ul>
-  </aside>
-  
+  {/if}
+  <li>
+    <a href={"#/"} class:active={!activeChatId} class="panel-block">Settings</a>
+  </li>
+</ul>

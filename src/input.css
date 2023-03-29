@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  @media (min-width: 1024px) {
+    .text-base-content {
+      height: calc(100vh - 2rem);
+    }
+    .navbar {
+      width: calc(100% - 1rem);
+    }
+
+    .drawer-content > .content {
+      width: calc(100% - 1rem);
+    }
+  }
+
+  .drawer-toggle ~ .drawer-side > .drawer-overlay + * {
+    --tw-translate-x: calc(-100% - 2rem);
+  }
+
+  ul:not(.menu),
+  ol:not(.menu) {
+    list-style: inherit;
+    margin: inherit;
+    padding: inherit;
+  }
+}

@@ -1,12 +1,23 @@
 <script lang="ts">
-  import logo from '../assets/logo.svg'
+  import logo from "../assets/logo.svg";
+  import Menu from "svelte-material-icons/Menu.svelte";
 </script>
 
-<nav class="navbar" aria-label="main navigation">
-  <div class="navbar-brand">
-    <a class="navbar-item" href={'#/'}>
-      <img src={logo} alt="ChatGPT-web" width="28" height="28" />
-      <p class="ml-2 is-size-4 has-text-weight-bold">ChatGPT PLUS</p>
+<div
+  class="navbar bg-base-200 lg:rounded-box lg:m-4 lg:ml-0 flex justify-between"
+  aria-label="main navigation"
+>
+  <div>
+    <a class="text-xl flex" href={"#/"}>
+      <img src={logo} class=" mx-4" alt="ChatGPT-web" width="28" height="28" />
+      <p class="text-xl">ChatGPT PLUS</p>
     </a>
   </div>
-</nav>
+  <div>
+    <label
+      for="sidebar"
+      class="btn btn-primary btn-square drawer-button lg:hidden"
+      ><Menu size={20} /></label
+    >
+  </div>
+</div>

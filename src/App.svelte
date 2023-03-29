@@ -4,10 +4,10 @@
 
   import Navbar from "./lib/Navbar.svelte";
   import Sidebar from "./lib/Sidebar.svelte";
-  import Footer from "./lib/Footer.svelte";
   import Home from "./lib/Home.svelte";
   import Chat from "./lib/Chat.svelte";
   import NewChat from "./lib/NewChat.svelte";
+  import Close from "svelte-material-icons/Close.svelte";
   import { chatsStorage, apiKeyStorage } from "./lib/Storage.svelte";
 
   // Check if the API key is passed in as a "key" query parameter - if so, save it
@@ -43,21 +43,32 @@
   };
 </script>
 
-<Navbar />
-
-<section class="section">
-  <div class="container is-fullhd">
-    <div class="columns">
-      <div class="column is-one-fifth">
+<div class="drawer drawer-mobile">
+  <input id="sidebar" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content lg:pl-0 flex flex-col pb-4">
+    <Navbar />
+    <div
+      class="content w-full flex-1 h-full lg:rounded-box bg-base-200 p-4 overflow-x-scroll relative"
+    >
+      {#key $location}
+        <Router {routes} on:conditionsFailed={() => replace("/")} />
+      {/key}
+    </div>
+  </div>
+  <div class="drawer-side">
+    <label for="sidebar" class="drawer-overlay" />
+    <div
+      class="p-4 lg:m-4 w-80 bg-base-200 text-base-content lg:rounded-box relative overflow-y-scroll"
+    >
+      <div class="gap-4 menu">
         <Sidebar />
-      </div>
-      <div class="column is-four-fifths" id="content">
-        {#key $location}
-          <Router {routes} on:conditionsFailed={() => replace("/")} />
-        {/key}
+        <label
+          class="absolute transition-transform top-0 right-0 btn btn-circle rounded-tr-none lg:hidden"
+          for="sidebar"
+        >
+          <Close size={20} />
+        </label>
       </div>
     </div>
   </div>
-</section>
-
-<Footer />
+</div>
