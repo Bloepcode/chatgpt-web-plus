@@ -1,5 +1,4 @@
 <script lang="ts">
-  import logo from "../assets/logo.svg";
   import Menu from "svelte-material-icons/Menu.svelte";
 </script>
 
