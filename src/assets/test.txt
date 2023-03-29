@@ -1,5 +1,0 @@
-## math:
-### me:
-what is 6 + 4? And what is 32 plus 5.3 divided by 4 rounded to 2 digits?
-### you:
-6 plus 4 is `plugins.math.simple 6 + 4 = 10` and he answer to 32 plus 5.3 divided by 4 rounded to one digit is `plugins.math.round 32 + 5.3 / 4 = 33.325 2`

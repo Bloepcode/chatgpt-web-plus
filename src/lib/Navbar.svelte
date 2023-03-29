@@ -9,8 +9,7 @@
 >
   <div>
     <a class="text-xl flex" href={"#/"}>
-      <img src={logo} class=" mx-4" alt="ChatGPT-web" width="28" height="28" />
-      <p class="text-xl">ChatGPT PLUS</p>
+      <p class="text-xl mx-4">ChatGPT PLUS</p>
     </a>
   </div>
   <div>
