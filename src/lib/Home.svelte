@@ -79,9 +79,10 @@
           event.target[2].value
         ) {
           emailPasswordStorage.set({
-            email: event.target[0].value,
+            from: event.target[0].value,
             password: event.target[1].value,
-            service: event.target[2].value,
+            provider: event.target[2].value,
+            port: event.target[3].value,
           });
         }
       }}
@@ -93,7 +94,7 @@
           type="text"
           autocomplete="off"
           class="input"
-          value={emailPassword.email}
+          value={emailPassword.from}
         />
       </p>
       <p class="control is-expanded">
@@ -107,13 +108,23 @@
         />
       </p>
       <p class="control is-expanded">
-        Service:
+        Provider:
         <input
           aria-label="OpenAI API key"
           type="text"
           autocomplete="off"
           class="input"
-          value={emailPassword.service}
+          value={emailPassword.provider}
+        />
+      </p>
+      <p class="control is-expanded">
+        Port:
+        <input
+          aria-label="OpenAI API key"
+          type="number"
+          autocomplete="off"
+          class="input"
+          value={emailPassword.port}
         />
       </p>
       <p class="control">

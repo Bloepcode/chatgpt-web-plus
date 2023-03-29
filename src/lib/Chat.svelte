@@ -11,33 +11,18 @@
     editMessage,
     emailPasswordStorage,
   } from "./Storage.svelte";
-  import {
-    type Request,
-    type Response,
-    type Message,
-    type Settings,
-    type ResponseModels,
-    type SettingsSelect,
-    type Chat,
-    supportedModels,
-    type Plugin,
-    PluginResponseType,
-    type MessageRaw,
-  } from "./Types.svelte";
+  import type { Message, Chat } from "./Types.svelte";
   import Messages from "./Messages.svelte";
 
   import { afterUpdate, onMount } from "svelte";
   import { replace } from "svelte-spa-router";
   import Plugins from "./Plugins.svelte";
-  import { plugins } from "./plugins/Plugins";
-  import Prompts from "./Prompts.svelte";
   import { get } from "svelte/store";
   // import baseSystem from "../assets/base_system.txt";
-  const baseSystem =
-    "# Instuctions:\nYou are a even more power version of ChatGPT with access to plugins. If you need to use a plugin, reply with only and exactly the ChatGPT format of the action in the plugin. If there is no plugin for what you want to do, respond like you would without plugins. I will respond with your message but with the questions filled in, then you will rewrite your response. You cannot explain what you are doing when using a plugin! You have to ask the plugin between two ` characters. you CANNOT reply to your own questions as the plugin!\n# Installed plugins:\n{instructions}\n# Example conversations:\n{explanations}";
-  // This makes it possible to override the OpenAI API base URL in the .env file
+
   const apiBase = import.meta.env.VITE_API_BASE || "https://api.openai.com";
 
+  const socket = new WebSocket("ws://localhost:8000");
   export let params = { chatId: "" };
   const chatId: number = parseInt(params.chatId);
   console.log(get(emailPasswordStorage));
@@ -47,6 +32,7 @@
   let chatNameSettings: HTMLFormElement;
   let recognition: any = null;
   let recording = false;
+  let plugins: string[] = [];
 
   function removePluginWrapper(i: number) {
     removePlugin(chatId, i);
@@ -55,103 +41,11 @@
     addPlugin(chatId, name);
   }
 
-  const modelSetting: Settings & SettingsSelect = {
-    key: "model",
-    name: "Model",
-    default: "gpt-3.5-turbo",
-    title: "The model to use - GPT-3.5 is cheaper, but GPT-4 is more powerful.",
-    options: supportedModels,
-    type: "select",
-  };
-
-  let settingsMap: Settings[] = [
-    modelSetting,
-    {
-      key: "temperature",
-      name: "Sampling Temperature",
-      default: 0.7,
-      title:
-        "What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic.\n" +
-        "\n" +
-        "We generally recommend altering this or top_p but not both.",
-      min: 0,
-      max: 2,
-      step: 0.1,
-      type: "number",
-    },
-    {
-      key: "top_p",
-      name: "Nucleus Sampling",
-      default: 1,
-      title:
-        "An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered.\n" +
-        "\n" +
-        "We generally recommend altering this or temperature but not both",
-      min: 0,
-      max: 1,
-      step: 0.1,
-      type: "number",
-    },
-    {
-      key: "n",
-      name: "Number of Messages",
-      default: 1,
-      title:
-        "How many chat completion choices to generate for each input message.",
-      min: 1,
-      max: 10,
-      step: 1,
-      type: "number",
-    },
-    {
-      key: "max_tokens",
-      name: "Max Tokens",
-      title:
-        "The maximum number of tokens to generate in the completion.\n" +
-        "\n" +
-        "The token count of your prompt plus max_tokens cannot exceed the model's context length. Most models have a context length of 2048 tokens (except for the newest models, which support 4096).\n",
-      default: 0,
-      min: 0,
-      max: 32768,
-      step: 1024,
-      type: "number",
-    },
-    {
-      key: "presence_penalty",
-      name: "Presence Penalty",
-      default: 0,
-      title:
-        "Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.",
-      min: -2,
-      max: 2,
-      step: 0.2,
-      type: "number",
-    },
-    {
-      key: "frequency_penalty",
-      name: "Frequency Penalty",
-      default: 0,
-      title:
-        "Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim.",
-      min: -2,
-      max: 2,
-      step: 0.2,
-      type: "number",
-    },
-  ];
-
   $: chat = $chatsStorage.find((chat) => chat.id === chatId) as Chat;
 
   onMount(async () => {
-    // Pre-select the last used model
-    if (chat.messages.length > 0) {
-      modelSetting.default =
-        chat.messages[chat.messages.length - 1].model || modelSetting.default;
-      settingsMap = settingsMap;
-    }
-
     // Focus the input on mount
-    input.focus();
+    $: input.focus();
 
     // Try to detect speech recognition support
     if ("SpeechRecognition" in window) {
@@ -174,7 +68,7 @@
         input.value = text;
         recognition.stop();
         recording = false;
-        submitForm(true);
+        submitForm();
       };
     } else {
       console.log("Speech recognition not supported");
@@ -191,125 +85,33 @@
   });
 
   // Send API request
-  const sendRequest = async (messages: Message[]): Promise<Response> => {
+  const sendRequest = (messages: Message[]) => {
     // Show updating bar
     updating = true;
 
-    let response: Response;
-    try {
-      const request: Request = {
-        // Submit only the role and content of the messages, provide the previous messages as well for context
-        messages: messages
-          .map((message): MessageRaw => {
-            const { role, content } = message;
-            return { role, content };
-          })
-          // Skip error messages
-          .filter(
-            (message) => message.role !== "error" && message.role !== "plugin"
+    socket.send(
+      JSON.stringify({
+        type: "complete",
+        data: {
+          messages: chat.messages.filter(
+            (message) =>
+              message.role == "assistant" ||
+              message.role == "user" ||
+              message.role == "system"
           ),
-
-        // Provide the settings by mapping the settingsMap to key/value pairs
-        ...settingsMap.reduce((acc, setting) => {
-          const value = (
-            settings.querySelector(
-              `#settings-${setting.key}`
-            ) as HTMLInputElement
-          ).value;
-          if (value) {
-            acc[setting.key] =
-              setting.type === "number" ? parseFloat(value) : value;
-          }
-          return acc;
-        }, {}),
-      };
-
-      // Not working yet: a way to get the response as a stream
-      /*
-      request.stream = true
-      await fetchEventSource(apiBase + '/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization:
-          `Bearer ${$apiKeyStorage}`,
-          'Content-Type': 'application/json'
+          plugins: chat.plugins || [],
+          extra: { email: get(emailPasswordStorage) },
         },
-        body: JSON.stringify(request),
-        onmessage (ev) {
-          const data = JSON.parse(ev.data)
-          console.log(data)
-        },
-        onerror (err) {
-          throw err
-        }
       })
-      */
-
-      response = await (
-        await fetch(apiBase + "/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${$apiKeyStorage}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(request),
-        })
-      ).json();
-    } catch (e) {
-      response = { error: { message: e.message } } as Response;
-    }
-
-    // Hide updating bar
-    updating = false;
-
-    return response;
+    );
   };
 
-  const submitForm = async (
-    customInput: boolean = false,
-    recorded: boolean = false
-  ): Promise<void> => {
-    // Compose the input message
-    let instructions = "";
-    let explanations = "";
-    chat.plugins.forEach((pluginName) => {
-      const plugin = plugins.find((plugin) => plugin.name === pluginName);
-      instructions += plugin!.plugin + "\n";
-      explanations += plugin!.explanation + "\n";
+  const submitForm = async (): Promise<void> => {
+    addMessage(chatId, {
+      role: "user",
+      content: input.value,
+      hide: false,
     });
-    if (chat.plugins.length == 0) {
-      editMessage(
-        chatId,
-        0,
-        {
-          content: "",
-          role: "system",
-          hide: true,
-        },
-        false
-      );
-    } else {
-      editMessage(
-        chatId,
-        0,
-        {
-          content: baseSystem
-            .replace("{instructions}", instructions)
-            .replace("{explanations}", explanations),
-          role: "system",
-          hide: true,
-        },
-        false
-      );
-    }
-    if (!customInput) {
-      const inputMessage: Message = {
-        role: "user",
-        content: input.value,
-        hide: false,
-      };
-      addMessage(chatId, inputMessage);
-    }
     // Clear the input value
     input.value = "";
     input.blur();
@@ -317,102 +119,59 @@
     // Resize back to single line height
     input.style.height = "auto";
 
-    const response = await sendRequest(chat.messages);
-
-    if (response.error) {
-      addMessage(chatId, {
-        role: "error",
-        content: `Error: ${response.error.message}`,
-        hide: false,
-      });
-    } else {
-      response.choices.forEach((choice) => {
-        // Store usage and model in the message
-        choice.message.usage = response.usage;
-        choice.message.model = response.model;
-
-        // Remove whitespace around the message that the OpenAI API sometimes returns
-        choice.message.content = choice.message.content.trim();
-        chat.plugins.forEach((pluginName) => {
-          const plugin = plugins.find((plugin) => plugin.name === pluginName);
-          plugin!.receive(choice.message.content).then((result) => {
-            if (result.type == PluginResponseType.REPLACE) {
-              addMessage(chatId, {
-                role: "plugin",
-                content: "ChatGPT used plugin: " + pluginName,
-                hide: false,
-              });
-              console.log(choice.message.content);
-              choice.message.content = result.message;
-            }
-          });
-        });
-        addMessage(chatId, choice.message);
-        chat.plugins.forEach((pluginName) => {
-          const plugin = plugins.find((plugin) => plugin.name === pluginName);
-          plugin!.receive(choice.message.content).then((result) => {
-            if (result.type == PluginResponseType.ADD) {
-              console.log(choice.message.content);
-              editMessage(
-                chatId,
-                chat.messages.length - 1,
-                {
-                  content: chat.messages[chat.messages.length - 1].content,
-                  role: chat.messages[chat.messages.length - 1].role,
-                  hide: true,
-                },
-                false
-              );
-              addMessage(chatId, {
-                content: result.message,
-                role: "user",
-                hide: true,
-              });
-              addMessage(chatId, {
-                role: "plugin",
-                content: "ChatGPT used plugin: " + pluginName,
-                hide: false,
-              });
-              submitForm(true);
-            }
-          });
-        });
-        // Use TTS to read the response, if query was recorded
-        if (recorded && "SpeechSynthesisUtterance" in window) {
-          const utterance = new SpeechSynthesisUtterance(
-            choice.message.content
-          );
-          window.speechSynthesis.speak(utterance);
-        }
-      });
-    }
+    sendRequest(chat.messages);
   };
 
-  const suggestName = async (): Promise<void> => {
-    const suggestMessage: Message = {
-      role: "user",
-      content: "Can you give me a 5 word summary of this conversation's topic?",
-      hide: false,
-    };
-    addMessage(chatId, suggestMessage);
+  socket.addEventListener("message", async (event) => {
+    const blob = new Blob([event.data], {
+      type: "application/json",
+    });
+    const unblobbed = await blob.text();
+    const _data = JSON.parse(unblobbed);
+    const data = _data.data;
+    if (_data.type == "plugins") {
+      plugins = data.plugins;
+    }
 
-    const response = await sendRequest(chat.messages);
-
-    if (response.error) {
+    if (_data.type == "used_plugins") {
+      let plugins_str = "";
+      const entries: [string, string[]][] = Object.entries(data.plugins);
+      entries.forEach(([key, value]) => {
+        plugins_str += " - " + key + ": " + value.join(", ");
+      });
       addMessage(chatId, {
-        role: "error",
-        content: `Error: ${response.error.message}`,
+        role: "plugin",
+        content: "ChatGPT used plugin(s):\n" + plugins_str,
         hide: false,
       });
-    } else {
-      response.choices.forEach((choice) => {
-        choice.message.usage = response.usage;
-        addMessage(chatId, choice.message);
-        chat.name = choice.message.content;
-        chatsStorage.set($chatsStorage);
+    }
+    if (_data.type == "completed") {
+      updating = false;
+      for (let i = 0; i < data.messages.length - 1; i++) {
+        const message = data.messages[i];
+        addMessage(chatId, {
+          role: message.role,
+          content: message.content,
+          hide: true,
+        });
+      }
+      console.log(data.messages);
+      const message = data.messages[data.messages.length - 1];
+      addMessage(chatId, {
+        role: message.role,
+        content: message.content,
+        hide: false,
       });
     }
-  };
+    if (_data.type == "error") {
+      updating = false;
+      addMessage(chatId, {
+        role: "error",
+        content: data,
+        hide: false,
+      });
+    }
+  });
 
   const deleteChat = () => {
     if (window.confirm("Are you sure you want to delete this chat?")) {
@@ -447,41 +206,6 @@
     chatNameSettings.classList.remove("is-active");
   };
 
-  const showSettings = async () => {
-    settings.classList.add("is-active");
-
-    // Load available models from OpenAI
-    const allModels = (await (
-      await fetch(apiBase + "/v1/models", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${$apiKeyStorage}`,
-          "Content-Type": "application/json",
-        },
-      })
-    ).json()) as ResponseModels;
-    const filteredModels = supportedModels.filter((model) =>
-      allModels.data.find((m) => m.id === model)
-    );
-
-    // Update the models in the settings
-    modelSetting.options = filteredModels;
-    settingsMap = settingsMap;
-  };
-
-  const closeSettings = () => {
-    settings.classList.remove("is-active");
-  };
-
-  const clearSettings = () => {
-    settingsMap.forEach((setting) => {
-      const input = settings.querySelector(
-        `#settings-${setting.key}`
-      ) as HTMLInputElement;
-      input.value = "";
-    });
-  };
-
   const recordToggle = () => {
     // Check if already recording - if so, stop - else start
     if (recording) {
@@ -507,12 +231,6 @@
         <a
           href={"#"}
           class="greyscale ml-2 is-hidden has-text-weight-bold editbutton"
-          title="Suggest a chat name"
-          on:click|preventDefault={suggestName}>💡</a
-        >
-        <a
-          href={"#"}
-          class="greyscale ml-2 is-hidden has-text-weight-bold editbutton"
           title="Delete this chat"
           on:click|preventDefault={deleteChat}>🗑️</a
         >
@@ -533,16 +251,13 @@
 </nav>
 
 <Plugins
+  bind:plugins
   selectedPlugins={chat.plugins}
   addPlugin={addPluginWrapper}
   removePlugin={removePluginWrapper}
 />
 
-<Messages
-  bind:input
-  messages={chat.messages}
-  defaultModel={modelSetting.default}
-/>
+<Messages bind:input messages={chat.messages} {chatId} />
 
 {#if updating}
   <article class="message is-success assistant-message">
@@ -570,8 +285,8 @@
       }}
       on:input={(e) => {
         // Resize the textarea to fit the content - auto is important to reset the height after deleting content
-        input.style.height = "auto";
-        input.style.height = input.scrollHeight + "px";
+        $: input.style.height = "auto";
+        $: input.style.height = input.scrollHeight + "px";
       }}
       bind:this={input}
     />
@@ -585,79 +300,9 @@
     >
   </p>
   <p class="control">
-    <button class="button" on:click|preventDefault={showSettings}
-      ><span class="greyscale">⚙️</span></button
-    >
-  </p>
-  <p class="control">
     <button class="button is-info" type="submit">🚀 Send</button>
   </p>
 </form>
-
-<svelte:window
-  on:keydown={(event) => {
-    if (event.key === "Escape") {
-      closeSettings();
-      closeChatNameSettings();
-    }
-  }}
-/>
-
-<!-- svelte-ignore a11y-click-events-have-key-events -->
-<div class="modal" bind:this={settings}>
-  <div class="modal-background" on:click={closeSettings} />
-  <div class="modal-card">
-    <header class="modal-card-head">
-      <p class="modal-card-title">Settings</p>
-    </header>
-    <section class="modal-card-body">
-      {#each settingsMap as setting}
-        <div class="field is-horizontal">
-          <div class="field-label is-normal">
-            <label class="label" for="settings-{setting.key}"
-              >{setting.name}</label
-            >
-          </div>
-          <div class="field-body">
-            <div class="field">
-              {#if setting.type === "number"}
-                <input
-                  class="input"
-                  inputmode="decimal"
-                  type={setting.type}
-                  title={setting.title}
-                  id="settings-{setting.key}"
-                  min={setting.min}
-                  max={setting.max}
-                  step={setting.step}
-                  placeholder={String(setting.default)}
-                />
-              {:else if setting.type === "select"}
-                <div class="select">
-                  <select id="settings-{setting.key}" title={setting.title}>
-                    {#each setting.options as option}
-                      <option
-                        value={option}
-                        selected={option === setting.default}>{option}</option
-                      >
-                    {/each}
-                  </select>
-                </div>
-              {/if}
-            </div>
-          </div>
-        </div>
-      {/each}
-    </section>
-
-    <footer class="modal-card-foot">
-      <button class="button is-info" on:click={closeSettings}
-        >Close settings</button
-      >
-      <button class="button" on:click={clearSettings}>Clear settings</button>
-    </footer>
-  </div>
-</div>
 
 <!-- rename modal -->
 <form

@@ -13,7 +13,7 @@
   flex-grow: 1;
   min-height: 100vh;
 
-  section.section{
+  section.section {
     flex-grow: 1;
   }
 }
@@ -32,7 +32,7 @@ a.is-disabled {
   filter: grayscale(100%);
 }
 
-.user-message { 
+.user-message {
   max-width: 90%;
   margin-right: 0;
   margin-left: auto;
@@ -44,15 +44,32 @@ a.is-disabled {
   width: fit-content;
 }
 
+.editbutton {
+  opacity: 0;
+  width: 24px !important;
+  height: 24px !important;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  margin: 0 !important;
+  padding: 0 !important;
+  margin-left: 12px !important;
+}
+
 /* Show the edit button on hover of the user message */
 .user-message:hover .editbutton {
   /* TODO: add when ready: display: block !important; */
-  text-decoration: none !important;
+  opacity: 1 !important;
 }
 
 /* Swap the border on user messages to the other side */
 .user-message > .message-body {
   border-width: 0 4px 0 0 !important;
+  display: flex;
+}
+
+.user-message p {
+  margin: 0 !important;
 }
 
 /* Show the edit button on hover of the chat name */
@@ -86,14 +103,18 @@ $modal-content-width: 1000px;
     background-color: $danger; /* Red */
   }
   100% {
-    background-color: initial /* Default color */
+    background-color: initial; /* Default color */
   }
 }
 
 /* Support for dark mode */
-$modal-background-background-color-dark: rgba($dark, 0.86) !default; // remove this once a new version of bulma-prefers-dark is released
+$modal-background-background-color-dark: rgba(
+  $dark,
+  0.86
+) !default; // remove this once a new version of bulma-prefers-dark is released
 @import "/node_modules/bulma-prefers-dark/build/bulma-prefers-dark.sass";
-.modal-card-body { // remove this once https: //github.com/jloh/bulma-prefers-dark/pull/90 is merged and released
+.modal-card-body {
+  // remove this once https: //github.com/jloh/bulma-prefers-dark/pull/90 is merged and released
   background-color: $background-dark;
 }
 

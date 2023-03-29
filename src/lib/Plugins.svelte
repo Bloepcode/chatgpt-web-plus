@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { plugins } from "./plugins/Plugins";
   import type { Plugin } from "./Types.svelte";
 
+  export let plugins: string[];
   export let selectedPlugins: string[];
   export let addPlugin: (name: string) => void;
   export let removePlugin: (i: number) => void;
@@ -40,22 +40,22 @@
       <div class="dropdown-menu" id="dropdown-menu" role="menu">
         <div class="dropdown-content">
           {#each plugins as plugin}
-            {#if selectedPlugins.some((name) => name === plugin.name)}
+            {#if selectedPlugins.some((name) => name === plugin)}
               <a
                 class="dropdown-item is-active"
                 href={"#"}
-                on:click|preventDefault={() => inputPlugin(plugin.name)}
+                on:click|preventDefault={() => inputPlugin(plugin)}
               >
-                {plugin.name}
+                {plugin}
               </a>
             {/if}
-            {#if !selectedPlugins.some((name) => name === plugin.name)}
+            {#if !selectedPlugins.some((name) => name === plugin)}
               <a
                 class="dropdown-item"
                 href={"#"}
-                on:click|preventDefault={() => inputPlugin(plugin.name)}
+                on:click|preventDefault={() => inputPlugin(plugin)}
               >
-                {plugin.name}
+                {plugin}
               </a>
             {/if}
           {/each}

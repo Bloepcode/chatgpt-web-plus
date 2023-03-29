@@ -2,6 +2,7 @@
   import Code from "./Code.svelte";
   import SvelteMarkdown from "svelte-markdown";
   import type { Message, Model, Usage } from "./Types.svelte";
+  import { deleteMessages } from "./Storage.svelte";
 
   // Marked options
   const markedownOptions = {
@@ -11,8 +12,8 @@
   };
 
   export let messages: Message[];
+  export let chatId: number;
   export let input: HTMLTextAreaElement;
-  export let defaultModel: Model;
 
   // Reference: https://openai.com/pricing#language-models
   const tokenPrice: Record<string, [number, number]> = {
@@ -39,31 +40,33 @@
   console.log(messages);
 </script>
 
-{#each messages as message}
+{#each messages as message, i}
   {#if !message.hide}
     {#if message.role === "user"}
       <article
         class="message is-info user-message"
-        class:has-text-right={message.content
+        class:has-text-left={message.content
           .split("\n")
           .filter((line) => line.trim()).length === 1}
       >
         <div class="message-body content">
-          <a
-            href={"#"}
-            class="greyscale is-pulled-right ml-2 is-hidden editbutton"
+          <div>
+            <SvelteMarkdown
+              source={message.content}
+              options={markedownOptions}
+              renderers={{ code: Code, html: Code }}
+            />
+          </div>
+          <button
+            class="button is-warning editbutton"
             on:click={() => {
-              input.value = message.content;
-              input.focus();
+              $: input.value = message.content;
+              $: input.focus();
+              deleteMessages(chatId, i);
             }}
           >
             ✏️
-          </a>
-          <SvelteMarkdown
-            source={message.content}
-            options={markedownOptions}
-            renderers={{ code: Code, html: Code }}
-          />
+          </button>
         </div>
       </article>
     {:else if message.role === "system" || message.role === "error" || message.role === "plugin"}
@@ -84,24 +87,6 @@
             options={markedownOptions}
             renderers={{ code: Code, html: Code }}
           />
-          {#if message.usage}
-            <p class="is-size-7">
-              This message was generated on <em
-                >{message.model || defaultModel}</em
-              >
-              using
-              <span class="has-text-weight-bold"
-                >{message.usage.total_tokens}</span
-              >
-              tokens ~=
-              <span class="has-text-weight-bold"
-                >${getPrice(
-                  message.usage,
-                  message.model || defaultModel
-                ).toFixed(6)}</span
-              >
-            </p>
-          {/if}
         </div>
       </article>
     {/if}

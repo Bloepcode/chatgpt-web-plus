@@ -33,8 +33,9 @@
   };
 
   export type EmailPassword = {
-    service: string;
-    email: string;
+    provider: string;
+    port: number;
+    from: string;
     password: string;
   };
 

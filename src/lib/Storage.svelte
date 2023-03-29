@@ -79,7 +79,14 @@
   export const clearMessages = (chatId: number) => {
     const chats = get(chatsStorage);
     const chat = chats.find((chat) => chat.id === chatId) as Chat;
-    chat.messages = [];
+    chat.messages.splice(1);
+    chatsStorage.set(chats);
+  };
+
+  export const deleteMessages = (chatId: number, index: number) => {
+    const chats = get(chatsStorage);
+    const chat = chats.find((chat) => chat.id === chatId) as Chat;
+    chat.messages.splice(index);
     chatsStorage.set(chats);
   };
 
